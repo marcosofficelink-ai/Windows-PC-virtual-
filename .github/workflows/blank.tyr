@@ -1,0 +1,29 @@
+{
+  "name": "PC Virtual Híbrido (Ubuntu + Windows)",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "runArgs": ["--init", "--shm-size=1g"],
+  "features": {
+    "ghcr.io/devcontainers/features/desktop-lite:1": {
+      "version": "latest",
+      "password": "vscode",
+      "webPort": "6080",
+      "vncPort": "5901"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": false
+    }
+  },
+  "forwardPorts": [6080, 8006],
+  "portsAttributes": {
+    "6080": {
+      "label": "PC Virtual Ubuntu (noVNC)",
+      "onAutoForward": "notify"
+    },
+    "8006": {
+      "label": "PC Virtual Windows",
+      "onAutoForward": "notify"
+    }
+  },
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y firefox-esr",
+  "postStartCommand": "docker run -d --name windows-vm --device=/dev/kvm --cap-add NET_ADMIN -p 8006:8006 -e VERSION=tiny11 -e DISK_SIZE=20G --restart unless-stopped dockurr/windows || docker start windows-vm"
+}
