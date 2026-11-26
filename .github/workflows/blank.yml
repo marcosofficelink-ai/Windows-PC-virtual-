@@ -1,0 +1,53 @@
+name: Virtual PC Online
+
+on:
+  workflow_dispatch:
+    inputs:
+      access_password:
+        description: "Defina a senha de acesso para o utilizador (ou deixe o padrão)"
+        required: true
+        default: "12345678"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configurar Senha do Utilizador
+        run: |
+          echo "runner:${{ github.event.inputs.access_password }}" | sudo chpasswd
+          sudo usermod -aG sudo runner
+
+      - name: Instalar Servidor de Ambiente de Trabalho e Ferramentas
+        run: |
+          sudo apt update
+          sudo apt install -y xfce4 xfce4-goodies tightvncserver dbus-x11
+
+      - name: Instalar o Ngrok
+        uses: ngrok/ngrok-action@v1
+        with:
+          auth-token: ${{ secrets.NGROK_AUTHTOKEN }}
+
+      - name: Configurar e Iniciar Servidor VNC
+        run: |
+          mkdir -p ~/.vnc
+          echo "${{ github.event.inputs.access_password }}" | vncpasswd -f > ~/.vnc/passwd
+          chmod 600 ~/.vnc/passwd
+          cat <<EOF > ~/.vnc/xstartup
+          #!/bin/sh
+          xrdb $HOME/.Xresources
+          startxfce4 &
+          EOF
+          chmod +x ~/.vnc/xstartup
+          vncserver :1 -geometry 1280x720 -depth 24
+          echo "Servidor VNC iniciado na porta 5901"
+
+      - name: Expor VNC via Ngrok (TCP)
+        run: |
+          ngrok tcp 5901 --log=stdout &
+          sleep 5
+          echo "PC Virtual pronto! Utilize um cliente VNC com o endereço TCP gerado pelo Ngrok acima."
